@@ -2,7 +2,7 @@
 To run this project use the following commands
 ```console
 # examples
-<your-cli> git clone https://github.com/navaneethk99/btb-project
+<your-cli> git clone https://github.com/<your-fork>/btb-project
 <your-cli> cd btb-project
 <your-cli> npm run dev
 ```
