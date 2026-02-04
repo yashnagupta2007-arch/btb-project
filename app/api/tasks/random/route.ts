@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRandomTask } from '@/app/lib/taskPools';
+import { getRandomTask, TASK_POOLS } from '@/app/lib/taskPools';
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,6 +11,13 @@ export async function GET(req: NextRequest) {
         { error: 'Domain parameter is required' },
         { status: 400 }
       );
+    }
+
+    if (!Object.keys(TASK_POOLS).includes(domain)) {
+        return NextResponse.json(
+            { error: `Domain '${domain}' not found.` },
+            { status: 404 }
+        );
     }
 
     const task = getRandomTask(domain);
