@@ -2,6 +2,9 @@
   "name": "btb-project",
   "version": "0.1.0",
   "private": true,
+  "description": "To run this project use the following commands ```console # examples <your-cli> git clone https://github.com/<your-fork>/btb-project <your-cli> cd btb-project <your-cli> npm run dev ```",
+  "license": "ISC",
+  "author": "",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,7 +12,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
+    "lucide-react": "^0.563.0",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"

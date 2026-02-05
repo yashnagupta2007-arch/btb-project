@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/app/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || ''
-});
+import { geminiModel } from '@/lib/gemini';
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,9 +14,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
-        { error: 'OpenAI API key not configured' },
+        { error: 'Gemini API key not configured' },
         { status: 500 }
       );
     }
@@ -56,26 +52,29 @@ export async function POST(req: NextRequest) {
 
 async function analyzeSubmission(domain: string, taskTitle: string, submission: any) {
   const prompt = getAnalysisPrompt(domain, taskTitle, submission);
+  const fullPrompt = `You are an expert skill assessor. Provide objective, constructive analysis with specific scores (0-100) and actionable recommendations. Always return valid JSON.
+
+${prompt}`;
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert skill assessor. Provide objective, constructive analysis with specific scores (0-100) and actionable recommendations. Always return valid JSON."
-        },
-        {
-          role: "user",
-          content: prompt
+    const result = await geminiModel.generateContent(fullPrompt);
+    const response = await result.response;
+    const content = await response.text();
+    // The response from Gemini might have ```json ... ```, so I need to extract the JSON part.
+    const jsonMatch = content.match(/```json([\s\S]*)```/);
+    let jsonContent;
+    if (jsonMatch && jsonMatch[1]) {
+        jsonContent = jsonMatch[1];
+    } else {
+        // Fallback for cases where the json is not in a code block, but might be surrounded by ```
+        const plainJsonMatch = content.match(/```([\s\S]*)```/);
+        if(plainJsonMatch && plainJsonMatch[1]){
+            jsonContent = plainJsonMatch[1];
+        } else {
+            jsonContent = content;
         }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.7
-    });
-
-    const content = completion.choices[0].message.content;
-    return content ? JSON.parse(content) : getDefaultAnalysis(domain);
+    }
+    return JSON.parse(jsonContent);
   } catch (error) {
     console.error('AI analysis failed:', error);
     return getDefaultAnalysis(domain);
@@ -86,12 +85,12 @@ function getAnalysisPrompt(domain: string, taskTitle: string, submission: any): 
   const submissionText = submission.code || submission.text || '';
 
   const prompts: { [key: string]: string } = {
-    'code': `Analyze this code submission for: "${taskTitle}"
+    'code': `Analyze this code submission for: \"${taskTitle}\"
 
 CODE:
-\\\`\\\`\\\`
+\`\`\`
 ${submissionText}
-\\\`\\\`\\\`
+\`\`\`
 
 Evaluate (0-100 each):
 1. Correctness: Does it solve the problem?
@@ -111,7 +110,7 @@ Return JSON:
   }
 }`,
 
-    'design': `Analyze this design work for: "${taskTitle}"
+    'design': `Analyze this design work for: \"${taskTitle}\"
 
 DESIGN DESCRIPTION:
 ${submissionText}
@@ -134,7 +133,7 @@ Return JSON:
   }
 }`,
 
-    'data-analysis': `Analyze this data analysis for: "${taskTitle}"
+    'data-analysis': `Analyze this data analysis for: \"${taskTitle}\"
 
 ANALYSIS:
 ${submissionText}
@@ -157,7 +156,7 @@ Return JSON:
   }
 }`,
 
-    'communication': `Analyze this communication piece for: "${taskTitle}"
+    'communication': `Analyze this communication piece for: \"${taskTitle}\"
 
 CONTENT:
 ${submissionText}
@@ -180,7 +179,7 @@ Return JSON:
   }
 }`,
 
-    'critical-thinking': `Analyze this critical thinking response for: "${taskTitle}"
+    'critical-thinking': `Analyze this critical thinking response for: \"${taskTitle}\"
 
 RESPONSE:
 ${submissionText}
@@ -203,7 +202,7 @@ Return JSON:
   }
 }`,
 
-    'logical-reasoning': `Analyze this logical reasoning response for: "${taskTitle}"
+    'logical-reasoning': `Analyze this logical reasoning response for: \"${taskTitle}\"
 
 RESPONSE:
 ${submissionText}
